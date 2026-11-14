@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>タイマー</title>
+<style>
+  :root { color-scheme: light; --primary: #0017c1; --primary-hover: #000082; --text: #1a1a1c; --muted: #595959; --border: #767676; --font: "Noto Sans JP", "Yu Gothic UI", "Hiragino Kaku Gothic ProN", system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100dvh; display: grid; place-items: start center; align-content: start; row-gap: 24px; background: #fff; color: var(--text); font: 16px/1.5 var(--font); transition: background .3s; }
+  main { width: min(100%, 320px); height: 100dvh; min-height: 280px; display: flex; flex-direction: column; padding: 12px; text-align: center; container-type: inline-size; }
+  main > * { flex-shrink: 0; }
+  .browser-preview main { width: min(100%, 260px); height: 320px; outline: 1px solid #000; outline-offset: -1px; }
+  .timer-controls { display: grid; grid-template-columns: minmax(0, 1fr) 76px; grid-template-rows: 32px 28px; gap: 6px 8px; align-items: center; }
+  #clock { grid-column: 1; grid-row: 1 / 3; margin: 0; font: 600 62px/1.1 "Bahnschrift", "Segoe UI", Arial, sans-serif; font-variant-numeric: lining-nums tabular-nums; letter-spacing: -2px; white-space: nowrap; }
+  #clock.long { font-size: clamp(36px, 19cqw, 44px); }
+  label { display: flex; justify-content: center; align-items: center; gap: 4px; font-size: 14px; }
+  input { width: 78px; min-height: 32px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; background: #fff; color: var(--text); font: 14px/1.5 var(--font); text-align: center; }
+  input:hover:not(:disabled) { border-color: var(--text); }
+  input:disabled { background: #f2f2f2; color: var(--muted); }
+  .timer-controls > label { grid-column: 2; grid-row: 1; }
+  .buttons { grid-column: 2; grid-row: 2; display: flex; justify-content: center; gap: 8px; }
+  .buttons button { flex: none; display: grid; place-items: center; width: 28px; height: 28px; min-height: 28px; padding: 4px; border-radius: 6px; }
+  .buttons svg { width: 16px; height: 16px; fill: currentColor; }
+  button { flex: 1; min-height: 32px; border: 1px solid var(--primary); border-radius: 8px; padding: 4px 8px; background: #fff; color: var(--primary); font: 700 14px/1.5 var(--font); cursor: pointer; }
+  button:hover:not(:disabled) { background: #e8f1fe; border-color: var(--primary-hover); color: var(--primary-hover); text-decoration: underline; text-underline-offset: 3px; }
+  button:active:not(:disabled) { background: #d9e6ff; }
+  #start { background: var(--primary); color: #fff; }
+  #start:hover:not(:disabled) { background: var(--primary-hover); }
+  button:disabled { border-color: #c8c8cb; background: #f2f2f2; color: var(--muted); cursor: default; }
+  #start:disabled { background: #f2f2f2; color: var(--muted); }
+  #status { height: 20px; margin: 4px 0 0; font-size: 13px; line-height: 20px; }
+  body.remind main { background: #fff2a8; color: #452600; animation: reminder-color 2s ease-in-out infinite; }
+  @keyframes reminder-color { 0%, 100% { background: #fff2a8; } 50% { background: #ff923d; } }
+  @media (prefers-reduced-motion: reduce) { body.remind main { animation: none; } }
+  :focus-visible { outline: 4px solid #000; outline-offset: 2px; box-shadow: 0 0 0 2px #ffd43d; }
+  .tasks { flex: 1; min-height: 90px; display: flex; flex-direction: column; margin-top: 8px; text-align: left; }
+  .tasks > :not(#task-list) { flex-shrink: 0; }
+  #task-form { display: flex; gap: 8px; }
+  #task-input { width: 0; flex: 1; min-width: 0; min-height: 26px; padding: 2px 6px; font-size: 13px; line-height: 20px; text-align: left; }
+  #task-input::placeholder { color: var(--muted); opacity: 1; }
+  #task-form button { flex: none; min-height: 26px; padding: 2px 8px; font-size: 13px; line-height: 20px; }
+  #task-list { flex: 1; min-height: 0; overflow-y: auto; list-style: none; padding: 0 4px; margin: 6px -4px 0; scrollbar-width: thin; }
+  #task-list li { display: flex; align-items: flex-start; gap: 4px; padding: 1px 0; }
+  #task-list input { width: 16px; height: 16px; min-height: 0; margin: 3px 0 0; flex-shrink: 0; accent-color: var(--primary); }
+  #task-list span { overflow-wrap: anywhere; }
+  #task-list button { flex: none; min-height: 22px; padding: 0 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--muted); font-size: 18px; line-height: 20px; }
+  #task-list .task-text, #task-list .task-edit-input { flex: 1; min-width: 0; margin: 0; padding: 0 4px; border: 1px solid transparent; border-radius: 4px; font: 14px/20px var(--font); color: inherit; text-align: left; overflow-wrap: anywhere; white-space: pre-wrap; }
+  #task-list .task-text { cursor: text; }
+  #task-list .task-text:hover { background: #f2f2f2; text-decoration: none; }
+  #task-list .task-edit-input { resize: none; background: #fff; border-color: var(--border); }
+  #task-list input:checked + .task-text { text-decoration: line-through; color: var(--muted); }
+  #minutes { width: 56px; min-width: 0; }
+  #save-status { margin: 8px 0 0; font-size: 14px; color: #a80000; }
+</style>
+<main aria-label="集中タイマー">
+  <div class="timer-controls">
+    <div id="clock" role="timer" aria-label="残り時間">30:00</div>
+    <label><input id="minutes" type="number" min="1" max="999" step="1" value="30" required aria-label="設定時間（分）"> 分</label>
+    <div class="buttons">
+      <button id="start" aria-label="スタート" title="スタート"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2 14 8 4 14Z"/></svg></button>
+      <button id="stop" aria-label="ストップ" title="ストップ" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="4" height="12" rx="1"/><rect x="9" y="2" width="4" height="12" rx="1"/></svg></button>
+    </div>
+  </div>
+  <p id="status" role="status"></p>
+  <section class="tasks" aria-label="タスク">
+    <form id="task-form">
+      <input id="task-input" type="text" placeholder="タスクを入力" aria-label="追加するタスク" maxlength="500" autocomplete="off" required>
+      <button type="submit">追加</button>
+    </form>
+    <ul id="task-list"></ul>
+    <p id="save-status" role="status" hidden></p>
+  </section>
+</main>
+<script>
+  if (!window.__TAURI_INTERNALS__) document.documentElement.classList.add('browser-preview');
+  const clock = document.querySelector('#clock');
+  const minutesInput = document.querySelector('#minutes');
+  const start = document.querySelector('#start');
+  const stop = document.querySelector('#stop');
+  const status = document.querySelector('#status');
+  let running = false;
+  let remaining = 30 * 60000;
+  let deadline = 0;
+  let idleSince = Date.now();
+  let finished = false;
+  let audioContext;
+  let lastReminderSound = -Infinity;
+
+  function enableAudio() {
+    try {
+      if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+    } catch {}
+  }
+
+  // 採用した「ピピ・ピピ・ピピ」。外部音源を使わず合成する。
+  const notificationNotes = Array.from({ length: 6 }, (_, index) => ({
+    offset: Math.floor(index / 2) * 0.8 + (index % 2) * 0.18,
+    frequency: 2000, type: 'piezo', volume: 0.16, duration: 0.11,
+    attack: 0.005, release: 0.015, sustain: true
+  }));
+
+  function playNotes(notes) {
+    const now = audioContext.currentTime;
+    notes.forEach(note => {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      if (note.type === 'piezo') {
+        // 小さな圧電ブザーのように、基本音を中心とした少量の倍音を加える。
+        // 矩形波そのものより高い倍音を抑え、正弦波より輪郭を残す。
+        oscillator.setPeriodicWave(audioContext.createPeriodicWave(
+          new Float32Array([0, 0, 0, 0]),
+          new Float32Array([0, 1, 0.1, 0.06])
+        ));
+      } else {
+        oscillator.type = note.type;
+      }
+      oscillator.frequency.value = note.frequency;
+      gain.gain.setValueAtTime(0, now + note.offset);
+      gain.gain.linearRampToValueAtTime(note.volume, now + note.offset + (note.attack ?? 0.02));
+      if (note.sustain) {
+        gain.gain.setValueAtTime(note.volume, now + note.offset + note.duration - note.release);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + note.offset + note.duration - 0.002);
+      } else {
+        gain.gain.exponentialRampToValueAtTime(0.001, now + note.offset + note.duration - (note.release ?? 0.03));
+      }
+      gain.gain.linearRampToValueAtTime(0, now + note.offset + note.duration);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(now + note.offset);
+      oscillator.stop(now + note.offset + note.duration);
+      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+    });
+  }
+
+  function playSound() {
+    if (!audioContext || audioContext.state !== 'running') return;
+    playNotes(notificationNotes);
+  }
+
+  document.addEventListener('pointerdown', enableAudio);
+  document.addEventListener('keydown', enableAudio);
+
+  const taskForm = document.querySelector('#task-form');
+  const taskInput = document.querySelector('#task-input');
+  const taskList = document.querySelector('#task-list');
+  const saveStatus = document.querySelector('#save-status');
+  const storageKey = 'focus-timer.tasks.v1';
+  let tasks = [];
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    if (Array.isArray(saved)) {
+      tasks = saved.filter(task => task && typeof task.text === 'string' && typeof task.done === 'boolean');
+    }
+  } catch {
+    saveStatus.hidden = false;
+    saveStatus.textContent = '保存済みタスクを読み込めませんでした。';
+  }
+
+  function saveTasks() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(tasks));
+      saveStatus.hidden = true;
+    } catch {
+      saveStatus.hidden = false;
+      saveStatus.textContent = '保存できません。この画面を閉じると変更が失われます。';
+    }
+  }
+
+  function renderTasks() {
+    taskList.replaceChildren();
+    tasks.forEach((task, index) => {
+      const row = document.createElement('li');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = task.done;
+      checkbox.setAttribute('aria-label', `${task.text}の完了`);
+      checkbox.addEventListener('change', () => {
+        task.done = checkbox.checked;
+        saveTasks();
+      });
+      const text = document.createElement('button');
+      text.type = 'button';
+      text.className = 'task-text';
+      text.textContent = task.text;
+      text.setAttribute('aria-label', `${task.text}を編集`);
+      let editor = null;
+      function finishEditing(save) {
+        if (!editor) return;
+        const value = editor.value.trim();
+        if (save && value) {
+          task.text = value;
+          text.textContent = value;
+          text.setAttribute('aria-label', `${value}を編集`);
+          checkbox.setAttribute('aria-label', `${value}の完了`);
+          remove.setAttribute('aria-label', `${value}を削除`);
+          saveTasks();
+        }
+        const currentEditor = editor;
+        editor = null;
+        currentEditor.replaceWith(text);
+      }
+      text.addEventListener('click', () => {
+        const height = text.getBoundingClientRect().height;
+        editor = document.createElement('textarea');
+        editor.className = 'task-edit-input';
+        editor.style.height = `${height}px`;
+        editor.maxLength = 500;
+        editor.value = task.text;
+        editor.setAttribute('aria-label', 'タスクを編集');
+        editor.addEventListener('keydown', event => {
+          if (event.isComposing) return;
+          if (event.key === 'Enter' || event.key === 'Escape') {
+            event.preventDefault();
+            finishEditing(event.key === 'Enter');
+            text.focus();
+          }
+        });
+        editor.addEventListener('blur', () => finishEditing(true));
+        text.replaceWith(editor);
+        editor.focus();
+        editor.select();
+      });
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = '×';
+      remove.setAttribute('aria-label', `${task.text}を削除`);
+      remove.addEventListener('click', () => {
+        tasks.splice(index, 1);
+        saveTasks();
+        renderTasks();
+        const next = taskList.children[index] || taskList.lastElementChild;
+        (next ? next.querySelector('button') : taskInput).focus();
+      });
+      row.append(checkbox, text, remove);
+      taskList.append(row);
+    });
+  }
+
+  taskForm.addEventListener('submit', event => {
+    event.preventDefault();
+    const text = taskInput.value.trim();
+    if (!text) return;
+    tasks.push({text, done: false});
+    saveTasks();
+    renderTasks();
+    taskInput.value = '';
+    taskInput.focus();
+  });
+  renderTasks();
+
+  function render() {
+    const now = Date.now();
+    if (running) {
+      remaining = Math.max(0, deadline - now);
+      if (remaining === 0) {
+        running = false;
+        finished = true;
+        idleSince = deadline;
+        playSound();
+      }
+    }
+    const seconds = Math.ceil(remaining / 1000);
+    clock.classList.toggle('long', seconds >= 6000);
+    clock.textContent = `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+    const remind = !running && now - idleSince >= 5 * 60000;
+    document.body.classList.toggle('remind', remind);
+    if (remind && now - lastReminderSound >= 30000 && audioContext?.state === 'running') {
+      playSound();
+      lastReminderSound = now;
+    }
+    const message = remind ? `${Math.floor((now - idleSince) / 60000)}分停止してます` : '';
+    if (status.textContent !== message) status.textContent = message;
+    start.disabled = running;
+    stop.disabled = !running;
+    minutesInput.disabled = running;
+  }
+
+  function configuredDuration() {
+    return Number(minutesInput.value) * 60000;
+  }
+  function updateDuration() {
+    minutesInput.setCustomValidity('');
+    if (!minutesInput.checkValidity()) return;
+    remaining = configuredDuration();
+    finished = false;
+    render();
+  }
+  minutesInput.addEventListener('change', updateDuration);
+  start.addEventListener('click', () => {
+    enableAudio();
+    minutesInput.setCustomValidity(configuredDuration() > 0 ? '' : '1分以上を指定してください。');
+    if (!minutesInput.reportValidity()) return;
+    if (finished || remaining <= 0) remaining = configuredDuration();
+    deadline = Date.now() + remaining;
+    running = true;
+    lastReminderSound = -Infinity;
+    finished = false;
+    render();
+  });
+  stop.addEventListener('click', () => {
+    remaining = Math.max(0, deadline - Date.now());
+    running = false;
+    idleSince = Date.now();
+    render();
+  });
+  document.addEventListener('visibilitychange', render);
+  setInterval(render, 200);
+  render();
+</script>
+</html>

@@ -1,0 +1,78 @@
+name: Windows build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - run: npm ci
+      - run: rustup component add rust-docs
+      - run: npm run prepare:frontend
+      - name: Build Windows executable
+        run: cargo build --manifest-path src-tauri/Cargo.toml --release --locked --features custom-protocol
+      - name: Install license report tool
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'cargo-about.tar.gz'
+          Invoke-WebRequest 'https://github.com/EmbarkStudios/cargo-about/releases/download/0.9.3/cargo-about-0.9.3-x86_64-pc-windows-msvc.tar.gz' -OutFile $archive
+          $expected = '9e2942533ef1c592c4a70bdb384cae1550a3f5fc9ae40379b6662e3d2f16fe02'
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'cargo-about checksum mismatch' }
+          $tools = Join-Path $env:RUNNER_TEMP 'cargo-about'
+          New-Item -ItemType Directory -Force $tools | Out-Null
+          tar -xzf $archive -C $tools
+          if ($LASTEXITCODE -ne 0) { throw 'cargo-about extraction failed' }
+          (Get-ChildItem $tools -Recurse -Filter cargo-about.exe | Select-Object -First 1).Directory.FullName >> $env:GITHUB_PATH
+      - name: Collect licenses and matching sources
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release | Out-Null
+          cargo-about generate --manifest-path src-tauri/Cargo.toml --features custom-protocol --locked --fail --output-file release/THIRD-PARTY-NOTICES.txt scripts/licenses.hbs
+          if ($LASTEXITCODE -ne 0) { throw 'License report failed' }
+          node scripts/package-release.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Release packaging failed' }
+          Compress-Archive -Path release/focus-timer-windows-x64/* -DestinationPath release/focus-timer-windows-x64.zip
+          $hash = (Get-FileHash release/focus-timer-windows-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  focus-timer-windows-x64.zip" | Set-Content release/SHA256SUMS.txt -Encoding utf8
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: focus-timer-windows-x64
+          path: |
+            release/focus-timer-windows-x64.zip
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: focus-timer-windows-x64
+          path: release
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" release/* --verify-tag --title "Focus Timer $RELEASE_TAG" --notes 'Windows x64 版です。ZIP を展開し、focus-timer.exe を実行してください。第三者ライセンスと対応するソースを同梱しています。'

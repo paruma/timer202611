@@ -1,0 +1,7 @@
+/node_modules/
+/dist/
+/windows-app/
+/src-tauri/target/
+/src-tauri/gen/schemas/
+/.yomiyasu/
+/release/
