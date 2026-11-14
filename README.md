@@ -31,13 +31,9 @@ npm run desktop
 
 ## 配布用ビルド
 
-```sh
-npm run desktop:build
-```
+配布用の ZIP は GitHub Actions で生成します。`v` から始まるバージョンタグを付けると、Windows 版をビルドし、実行ファイル・第三者ライセンス・対応ソースをまとめて Releases に公開します。
 
-出力先は `src-tauri/target/release/bundle/` です。
-
-GitHub Actions でも Windows 版をビルドします。`v` から始まるバージョンタグを付けると、実行ファイル・第三者ライセンス・対応ソースをまとめた ZIP を Releases に公開します。
+配布時は、ライセンス表記と対応ソースを含む ZIP 一式を使ってください。
 
 ## 画面の編集
 

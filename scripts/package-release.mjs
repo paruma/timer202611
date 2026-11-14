@@ -13,8 +13,17 @@ await copyFile(new URL('release/THIRD-PARTY-NOTICES.txt', root), new URL('THIRD-
 
 const metadata = JSON.parse(execFileSync('cargo', [
   'metadata', '--manifest-path', fileURLToPath(new URL('src-tauri/Cargo.toml', root)),
-  '--locked', '--offline', '--format-version', '1', '--filter-platform', 'x86_64-pc-windows-msvc'
+  '--locked', '--offline', '--features', 'custom-protocol', '--format-version', '1', '--filter-platform', 'x86_64-pc-windows-msvc'
 ], { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 }));
+
+const lock = (await readFile(new URL('src-tauri/Cargo.lock', root), 'utf8')).replace(/\r\n/g, '\n');
+const checksums = new Map();
+for (const entry of lock.split(/^\[\[package\]\]$/m).slice(1)) {
+  const name = entry.match(/^name = "([^"]+)"$/m)?.[1];
+  const version = entry.match(/^version = "([^"]+)"$/m)?.[1];
+  const checksum = entry.match(/^checksum = "([a-f0-9]{64})"$/m)?.[1];
+  if (name && version && checksum) checksums.set(`${name}-${version}`, checksum);
+}
 
 const sources = [];
 for (const pkg of metadata.packages.filter(pkg => pkg.source?.startsWith('registry+'))) {
@@ -34,6 +43,9 @@ for (const pkg of metadata.packages.filter(pkg => pkg.license?.includes('MPL-2.0
   const archive = join(dirname(dirname(registry)), 'cache', registry.split(/[\\/]/).at(-1), filename);
   const content = await readFile(archive);
   const hash = createHash('sha256').update(content).digest('hex');
+  if (hash !== checksums.get(`${pkg.name}-${pkg.version}`)) {
+    throw new Error(`MPL ソースが Cargo.lock と一致しません: ${filename}`);
+  }
   await copyFile(archive, new URL(`dependency-sources/${filename}`, output));
   sources.push(`${filename}\nSHA-256: ${hash}\nhttps://crates.io/crates/${pkg.name}/${pkg.version}\n`);
 }
