@@ -32,7 +32,8 @@
   body.remind main { background: #fff2a8; color: #452600; animation: reminder-color 2s ease-in-out infinite; }
   @keyframes reminder-color { 0%, 100% { background: #fff2a8; } 50% { background: #ff923d; } }
   @media (prefers-reduced-motion: reduce) { body.remind main { animation: none; } }
-  :focus-visible { outline: 4px solid #000; outline-offset: 2px; box-shadow: 0 0 0 2px #ffd43d; }
+  :focus { outline: none; }
+  .keyboard-navigation :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .tasks { flex: 1; min-height: 90px; display: flex; flex-direction: column; margin-top: 8px; text-align: left; }
   .tasks > :not(#task-list) { flex-shrink: 0; }
   #task-form { display: flex; gap: 8px; }
@@ -73,6 +74,12 @@
 </main>
 <script>
   if (!window.__TAURI_INTERNALS__) document.documentElement.classList.add('browser-preview');
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Tab') document.documentElement.classList.add('keyboard-navigation');
+  }, true);
+  document.addEventListener('pointerdown', () => {
+    document.documentElement.classList.remove('keyboard-navigation');
+  }, true);
   const clock = document.querySelector('#clock');
   const minutesInput = document.querySelector('#minutes');
   const start = document.querySelector('#start');
