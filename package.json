@@ -3,13 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@12.15.0",
   "scripts": {
+    "check": "eslint timer.html scripts/*.mjs eslint.config.mjs --max-warnings 0",
     "prepare:frontend": "node scripts/prepare-frontend.mjs",
     "desktop": "tauri dev",
     "desktop:build": "tauri build",
     "tauri": "tauri"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0"
+    "@eslint/js": "^10.0.1",
+    "@tauri-apps/cli": "^2.0.0",
+    "eslint": "^10.14.0",
+    "eslint-plugin-html": "^8.2.1",
+    "globals": "^17.14.0"
   }
 }

@@ -24,13 +24,13 @@ Windows 側の Rust と Microsoft C++ Build Tools を使い、`%TEMP%\timer20261
 
 ## 開発用の起動
 
-Windows 側に Node.js（LTS 推奨）、npm、Rust（stable・MSVC 版）、Microsoft C++ Build Tools の「C++ によるデスクトップ開発」、WebView2 が必要です。導入手順は [Tauri の前提環境](https://v2.tauri.app/start/prerequisites/)を参照してください。
+Windows 側に Node.js（LTS 推奨）、pnpm 12.15.0、Rust（stable・MSVC 版）、Microsoft C++ Build Tools の「C++ によるデスクトップ開発」、WebView2 が必要です。導入手順は [Tauri の前提環境](https://v2.tauri.app/start/prerequisites/)を参照してください。pnpm は `npm install --global pnpm@12.15.0` で導入できます。
 
 Windows 側のターミナルで、プロジェクトのルートから次のコマンドを実行してください。
 
 ```sh
-npm ci
-npm run desktop
+pnpm install --frozen-lockfile
+pnpm run desktop
 ```
 
 ## 配布用ビルド
@@ -41,8 +41,12 @@ npm run desktop
 
 ## 画面の編集
 
+変更後は `pnpm run check` で、HTML 内の JavaScript と `scripts/*.mjs` の構文・未定義変数などを検査できます。同じ検査を Windows ビルドの CI でも実行します。画面の見た目や操作は別途確認してください。
+
+依存パッケージは `pnpm-workspace.yaml` の設定で、公開から7日以上経過したバージョンに制限しています。条件を満たすバージョンがない場合や公開日時を確認できない場合は、インストールを失敗させます。
+
 画面のソースは `timer.html` です。起動・ビルド前に `scripts/prepare-frontend.mjs` がこのファイルを `dist/index.html` へコピーします。
 
 ブラウザ版は `timer.html` を直接開いて使えます。HTML の変更は再読み込みで反映されます。
 
-デスクトップ版では HTML を実行ファイルに組み込むため、変更を反映するには再ビルドが必要です。`npm run desktop` で開発している場合は、このコマンドを実行し直してください。Windows 版の実行ファイルを更新する場合は、アプリを閉じてから `scripts/windows.ps1 -Run` を実行してください。
+デスクトップ版では HTML を実行ファイルに組み込むため、変更を反映するには再ビルドが必要です。`pnpm run desktop` で開発している場合は、このコマンドを実行し直してください。Windows 版の実行ファイルを更新する場合は、アプリを閉じてから `scripts/windows.ps1 -Run` を実行してください。

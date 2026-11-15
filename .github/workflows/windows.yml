@@ -15,16 +15,19 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@f53f5227a9e83886ab598c617f3c170fab62f0d3 # v6
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
-          cache: npm
+          check-latest: true
+          cache: pnpm
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: stable
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
       - run: rustup component add rust-docs
-      - run: npm run prepare:frontend
+      - run: pnpm run prepare:frontend
       - name: Build Windows executable
         run: cargo build --manifest-path src-tauri/Cargo.toml --release --locked --features custom-protocol
       - name: Install license report tool

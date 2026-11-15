@@ -85,8 +85,8 @@
   const clock = document.querySelector('#clock');
   const minutesInput = document.querySelector('#minutes');
   const start = document.querySelector('#start');
-  const stop = document.querySelector('#stop');
-  const status = document.querySelector('#status');
+  const stopButton = document.querySelector('#stop');
+  const statusText = document.querySelector('#status');
   let running = false;
   let remaining = 30 * 60000;
   let deadline = 0;
@@ -350,9 +350,9 @@
       lastReminderSound = now;
     }
     const message = remind ? `${Math.floor((now - idleSince) / 60000)}分停止してます` : '';
-    if (status.textContent !== message) status.textContent = message;
+    if (statusText.textContent !== message) statusText.textContent = message;
     start.disabled = running;
-    stop.disabled = !running;
+    stopButton.disabled = !running;
     minutesInput.disabled = running;
   }
 
@@ -378,7 +378,7 @@
     finished = false;
     render();
   });
-  stop.addEventListener('click', () => {
+  stopButton.addEventListener('click', () => {
     remaining = Math.max(0, deadline - Date.now());
     running = false;
     idleSince = Date.now();

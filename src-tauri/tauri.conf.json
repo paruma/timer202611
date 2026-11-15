@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.paruma.focus-timer",
   "build": {
-    "beforeDevCommand": "npm run prepare:frontend",
-    "beforeBuildCommand": "npm run prepare:frontend",
+    "beforeDevCommand": "pnpm run prepare:frontend",
+    "beforeBuildCommand": "pnpm run prepare:frontend",
     "frontendDist": "../dist"
   },
   "app": {

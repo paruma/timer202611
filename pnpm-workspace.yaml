@@ -1,0 +1,10 @@
+# 公開から7日以上経過したバージョンだけを使用する。
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+
+# ESLint 10.14 の依存を GHSA-g3hv-75wg-m249 の修正版へ置き換える。
+# ESLint と config-array が修正版を要求するようになったら削除する。
+overrides:
+  'eslint>minimatch': ^11.0.5
+  '@eslint/config-array>minimatch': ^11.0.5
