@@ -42,6 +42,8 @@
   #task-form button { flex: none; min-height: 26px; padding: 2px 8px; font-size: 13px; line-height: 20px; }
   #task-list { flex: 1; min-height: 0; overflow-y: auto; list-style: none; padding: 4px; margin: 2px -4px 0; scrollbar-width: thin; }
   #task-list li { display: flex; align-items: flex-start; gap: 4px; padding: 1px 0; }
+  #task-list li.drop-before { box-shadow: 0 -2px var(--primary); }
+  #task-list li.drop-after { box-shadow: 0 2px var(--primary); }
   #task-list input { width: 16px; height: 16px; min-height: 0; margin: 3px 0 0; flex-shrink: 0; accent-color: var(--primary); }
   #task-list span { overflow-wrap: anywhere; }
   #task-list button { flex: none; min-height: 22px; padding: 0 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--muted); font-size: 18px; line-height: 20px; }
@@ -174,12 +176,65 @@
     }
   }
 
+  let draggedTask = null;
+  let suppressTaskClickUntil = 0;
+
+  taskList.addEventListener('click', event => {
+    if (draggedTask || Date.now() < suppressTaskClickUntil) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
+
+  function clearDropIndicator() {
+    for (const row of taskList.children) row.classList.remove('drop-before', 'drop-after');
+  }
+
+  function taskDropIndex(clientY) {
+    return Array.from(taskList.children).findIndex(row => {
+      const bounds = row.getBoundingClientRect();
+      return clientY < bounds.top + bounds.height / 2;
+    });
+  }
+
+  function updateTaskDropTarget(event) {
+    if (!draggedTask) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    clearDropIndicator();
+    const index = taskDropIndex(event.clientY);
+    if (index < 0) taskList.lastElementChild?.classList.add('drop-after');
+    else taskList.children[index].classList.add('drop-before');
+  }
+  taskList.addEventListener('dragenter', updateTaskDropTarget, true);
+  taskList.addEventListener('dragover', updateTaskDropTarget, true);
+  taskList.addEventListener('dragleave', event => {
+    if (!taskList.contains(event.relatedTarget)) clearDropIndicator();
+  });
+  taskList.addEventListener('drop', event => {
+    if (!draggedTask) return;
+    event.preventDefault();
+    const source = tasks.indexOf(draggedTask);
+    const boundary = taskDropIndex(event.clientY);
+    const destination = boundary < 0 ? tasks.length : boundary;
+    if (source >= 0) {
+      tasks.splice(source, 1);
+      tasks.splice(destination > source ? destination - 1 : destination, 0, draggedTask);
+      saveTasks();
+    }
+    draggedTask = null;
+    suppressTaskClickUntil = Date.now() + 200;
+    renderTasks();
+  });
+
   function renderTasks() {
     taskList.replaceChildren();
     tasks.forEach((task, index) => {
       const row = document.createElement('li');
+      row.draggable = true;
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
+      checkbox.draggable = true;
       checkbox.checked = task.done;
       checkbox.setAttribute('aria-label', `${task.text}の完了`);
       checkbox.addEventListener('change', () => {
@@ -191,6 +246,22 @@
       text.className = 'task-text';
       text.textContent = task.text;
       text.setAttribute('aria-label', `${task.text}を編集`);
+      text.draggable = true;
+      row.addEventListener('dragstart', event => {
+        if (editor) {
+          event.preventDefault();
+          return;
+        }
+        draggedTask = task;
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', task.text);
+        event.dataTransfer.setDragImage(row, 0, 0);
+      });
+      row.addEventListener('dragend', () => {
+        draggedTask = null;
+        suppressTaskClickUntil = Date.now() + 200;
+        clearDropIndicator();
+      });
       let editor = null;
       function finishEditing(save) {
         if (!editor) return;
@@ -208,6 +279,7 @@
         currentEditor.replaceWith(text);
       }
       text.addEventListener('click', () => {
+        if (draggedTask || Date.now() < suppressTaskClickUntil) return;
         const height = text.getBoundingClientRect().height;
         editor = document.createElement('textarea');
         editor.className = 'task-edit-input';
@@ -230,6 +302,7 @@
       });
       const remove = document.createElement('button');
       remove.type = 'button';
+      remove.draggable = true;
       remove.textContent = '×';
       remove.setAttribute('aria-label', `${task.text}を削除`);
       remove.addEventListener('click', () => {
