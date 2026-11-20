@@ -52,7 +52,8 @@
   #task-list .task-text:hover { background: #f2f2f2; text-decoration: none; }
   #task-list .task-edit-input { resize: none; background: #fff; border-color: var(--border); }
   #task-list input:checked + .task-text { text-decoration: line-through; color: var(--muted); }
-  #minutes { width: 56px; min-width: 0; }
+  #minutes { width: 56px; min-width: 0; appearance: textfield; -moz-appearance: textfield; }
+  #minutes::-webkit-inner-spin-button, #minutes::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   #save-status { margin: 8px 0 0; font-size: 14px; color: #a80000; }
 </style>
 <main aria-label="集中タイマー">
@@ -75,6 +76,14 @@
 </main>
 <script>
   if (!window.__TAURI_INTERNALS__) document.documentElement.classList.add('browser-preview');
+  document.addEventListener('contextmenu', event => {
+    if (!window.__TAURI_INTERNALS__ || event.target.closest('input, textarea, [contenteditable="true"]')) return;
+    event.preventDefault();
+    window.__TAURI_INTERNALS__.invoke('show_window_menu', { soundEnabled }).catch(error => {
+      console.error('ウィンドウのメニューを開けませんでした:', error);
+      window.alert('ウィンドウのメニューを開けませんでした。');
+    });
+  });
   document.addEventListener('keydown', event => {
     if (event.key === 'Tab') document.documentElement.classList.add('keyboard-navigation');
   }, true);
@@ -93,6 +102,15 @@
   let idleSince = Date.now();
   let finished = false;
   let audioContext;
+  let soundEnabled = true;
+  const activeOscillators = new Set();
+  window.addEventListener('toggle-sound', () => {
+    soundEnabled = !soundEnabled;
+    if (!soundEnabled) {
+      for (const oscillator of activeOscillators) oscillator.stop();
+      activeOscillators.clear();
+    }
+  });
   let lastReminderSound = -Infinity;
 
   function enableAudio() {
@@ -137,13 +155,14 @@
       oscillator.connect(gain);
       gain.connect(audioContext.destination);
       oscillator.start(now + note.offset);
+      activeOscillators.add(oscillator);
       oscillator.stop(now + note.offset + note.duration);
-      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+      oscillator.onended = () => { activeOscillators.delete(oscillator); oscillator.disconnect(); gain.disconnect(); };
     });
   }
 
   function playSound() {
-    if (!audioContext || audioContext.state !== 'running') return;
+    if (!soundEnabled || !audioContext || audioContext.state !== 'running') return;
     playNotes(notificationNotes);
   }
 
@@ -362,6 +381,18 @@
   function configuredDuration() {
     return Number(minutesInput.value) * 60000;
   }
+  function resetTimer() {
+    minutesInput.setCustomValidity('');
+    if (!minutesInput.reportValidity()) return;
+    running = false;
+    remaining = configuredDuration();
+    deadline = 0;
+    finished = false;
+    idleSince = Date.now();
+    lastReminderSound = -Infinity;
+    render();
+  }
+  window.addEventListener('reset-timer', resetTimer);
   function updateDuration() {
     minutesInput.setCustomValidity('');
     if (!minutesInput.checkValidity()) return;
