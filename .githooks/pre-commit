@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+git diff --cached --check
+
+if ! git diff --cached --quiet -- timer.html eslint.config.mjs 'scripts/*.mjs' package.json pnpm-lock.yaml pnpm-workspace.yaml; then
+    pnpm run check
+fi
+
+if ! git diff --cached --quiet -- src-tauri package.json; then
+    pnpm run check:rust
+fi

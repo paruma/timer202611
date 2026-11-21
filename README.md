@@ -43,6 +43,10 @@ pnpm run desktop
 
 ## 画面の編集
 
+開発時は `pnpm run hooks:install` を一度実行すると、コミット前に変更対象に応じた検査が動きます。hook は作業ツリーを検査し、自動整形はしません。部分的にステージした場合は、検査結果に未ステージの変更も含まれます。
+
+Rust の変更後は `pnpm run format:rust` で整形し、`pnpm run check:rust` で整形確認と Clippy を実行してください。
+
 変更後は `pnpm run check` で、HTML 内の JavaScript と `scripts/*.mjs` の構文・未定義変数などを検査できます。同じ検査を Windows ビルドの CI でも実行します。画面の見た目や操作は別途確認してください。
 
 依存パッケージは `pnpm-workspace.yaml` の設定で、公開から7日以上経過したバージョンに制限しています。条件を満たすバージョンがない場合や公開日時を確認できない場合は、インストールを失敗させます。

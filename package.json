@@ -6,6 +6,9 @@
   "packageManager": "pnpm@12.15.0",
   "scripts": {
     "check": "eslint timer.html scripts/*.mjs eslint.config.mjs --max-warnings 0",
+    "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings",
+    "format:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "hooks:install": "git config --local core.hooksPath .githooks",
     "prepare:frontend": "node scripts/prepare-frontend.mjs",
     "desktop": "tauri dev",
     "desktop:build": "tauri build",
